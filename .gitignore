@@ -1,0 +1,3 @@
+model/results/
+model/infeasible.ilp
+__pycache__/
