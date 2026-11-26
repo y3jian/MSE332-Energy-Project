@@ -29,11 +29,16 @@ class Params:
     solar: str = "Avg CF"                     # CF column: "Avg CF", "S1_frac", "S2_frac", "S3_frac"
 
     # --- battery
-    c_B: dict = field(default_factory=lambda: {2028: 410.0, 2040: 309.0})      # CAD/kWh (report sync note; confirm)
-    c_rep: float = 293.0                      # 2043 replacement, CAD/kWh (report sync note; confirm)
-    F_B: float = 50_000.0                     # fixed project cost, CAD (group assumption)
-    m_B_frac: float = 0.04                    # TBD: m^B = 4% of capital cost/yr (progress-report placeholder)
-    B_min: float = 4_000.0                    # kWh (ATB 1 MW, 4 h system)
+    c_B: dict = field(default_factory=lambda: {2028: 410.2, 2040: 309.4})  # CAD/kWh (NLR 2025 battery cost
+                                              # projections: USD 293 / 221 x 1.4)
+    c_rep: float = 292.6                      # 2043 replacement, CAD/kWh (NLR: USD 209 x 1.4)
+    # m^B_{y,v}, CAD/kWh/yr (IESO APO 2024 Resource Costs): 2028 battery 17.81, 2040 battery 14.23,
+    # replacement battery 13.34 (team decision: the 2028 battery uses the replacement rate from y = 2043).
+    m_B: dict = field(default_factory=lambda: {
+        (2031, 2028): 17.81, (2037, 2028): 17.81, (2043, 2028): 13.34, (2049, 2028): 13.34,
+        (2043, 2040): 14.23, (2049, 2040): 14.23})
+    F_B: float = 50_000.0                     # fixed project cost, CAD (DOE cost benchmarks)
+    B_min: float = 4_000.0                    # kWh (NLR ATB 2025 commercial battery)
     B_max: float = 17_000.0                   # kWh (group assumption)
     eta: float = 0.85 ** 0.5                  # one-way efficiency (85% round trip, NLR ATB)
     h_B: float = 4.0                          # storage duration, h
@@ -71,7 +76,12 @@ class Params:
         """Remaining output fraction in year y of PV built in year v (runs from v + 1)."""
         return (1 - self.delta) ** (y - v - 1)
 
-    def m_B(self, y, v):
-        """Battery O&M rate; the 2028 battery uses the replacement cost from 2043 on."""
-        cost = self.c_rep if (v == 2028 and y >= 2043) else self.c_B[v]
-        return self.m_B_frac * cost
+    def missing(self):
+        """Names of parameters the team has not confirmed yet (None, also inside dicts)."""
+        out = []
+        for name, value in vars(self).items():
+            if value is None:
+                out.append(name)
+            elif isinstance(value, dict):
+                out += [f"{name}{key}" for key, v in value.items() if v is None]
+        return out

@@ -24,8 +24,10 @@ Solved in Python with Gurobi.
    number, e.g. `# (6)`, and uses the report's symbol names where practical.
 5. **Numbers live in `model/params.py` only**, each with units and a short source comment.
    No hard-coded parameter values in `model/microgrid.py`.
-6. **Don't guess parameter values.** If a value is marked TBD in `docs/formulation.md`, leave a
-   clearly named placeholder and tell the user; never make up a number.
+6. **Make no assumptions; ask.** If a value, mapping or modelling choice isn't stated in
+   `docs/formulation.md`, or two documents disagree, don't pick one. Set the value to `None`
+   in `params.py` (the model refuses to run), add it to "Open questions" in
+   `docs/formulation.md`, and ask the user. Never make up a number or fill a gap with a "reasonable" default.
 7. **Flag formulation problems, don't silently fix them.** If the math is wrong or incomplete
    (e.g. a variable with no cost), say so and ask before changing the model.
 8. **Raw data is read-only.** `data/*.csv` is never edited. Processed data is produced by the notebooks.

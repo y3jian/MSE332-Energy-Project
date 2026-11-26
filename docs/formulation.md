@@ -1,6 +1,6 @@
 # Team formulation (source of truth for the code)
 
-Text version of `docs/team/formulation.pdf` (updated base model, version 3) and `docs/team/parameters.pdf`.
+Text version of `docs/team/formulation.pdf` (updated base model, v3) and `docs/team/parameters.pdf` (v4).
 `model/` must implement exactly this. If the team changes the formulation, update this file first.
 
 The model is a **MILP**: z^PV_v, z^B_v ∈ {0,1}; everything else is continuous.
@@ -71,25 +71,38 @@ min Z = C^inv + C^OM + C^rep − C^RV + C^grid
 | J: E^PV_j, a_j | 60 kW (2012), 10 kW (2024) | EV3 arrays (progress report, Table 5) |
 | l^PV, δ | 25 yr, 0.005 | ATB / UW Climate Institute |
 | CF_t | `Avg CF` from `data/processed/Solar PV data cleaned.csv` (S1–S3 for sensitivity) | given data (P2) |
-| c^B_v, c^rep_2043 | 410 (2028), 309 (2040), 293 (2043) CAD/kWh, **mapping to confirm** | report note (v3) |
-| F^B | 50,000 CAD | group assumption |
-| m^B_{y,v} | **TBD**: placeholder 4% of capital cost per year (progress-report value) | NLR ATB |
-| B^max / B^min | 17,000 / 4,000 kWh | group / ATB 1 MW 4-h system |
-| η, h^B | √0.85 ≈ 0.922, 4 h | NLR ATB 2025 battery |
+| c^B_v | 410.2 (2028), 309.4 (2040) CAD/kWh (USD 293 / 221 × 1.4) | NLR battery cost projections, 2025 update |
+| c^rep_2043 | 292.6 CAD/kWh (USD 209 × 1.4) | NLR battery cost projections, 2025 update |
+| F^B | 50,000 CAD | DOE PV system cost benchmarks |
+| m^B_{y,v} | 2028 battery 17.81, 2040 battery 14.23, replacement 13.34 CAD/kWh/yr (2028 battery uses 13.34 from y = 2043, team decision) | IESO APO 2024 Resource Costs |
+| B^max / B^min | 17,000 / 4,000 kWh | Elora-Fergus BESS land use / NLR ATB 2025 |
+| η, h^B | 0.92195 (= √0.85), 4 h | NLR ATB 2025 battery |
 | SOC^min, SOC^0 | 0.10, 0.50 | |
-| g | 0.02 | IESO APO |
+| g | 0.02 | IESO 2026 APO (about 2.1%/yr reference) |
 | φ | 0.10 | |
 | c^imp_t | 0.091 / 0.146 / 0.189 CAD/kWh (off / mid / on-peak) | OEB TOU, Nov 2026 |
 | c^exp | 0.0641 CAD/kWh (constant) | IESO 2025 Year in Review |
 | G^imp,max / G^exp,max | 30,436 / 6,860 kW | P5 |
 | Δt | 1 h | |
 
-## Open issues
-- m^B has no value yet (placeholder above).
-- The battery costs "410/309/293" come from the report's sync note without labels; assumed c^B_2028 / c^B_2040 / c^rep_2043.
-  The parameter sheet still lists c^B = 300.30 / 187.63 (CER).
-- E_y: the formula retires the 60 kW EV3 array in 2037 (→ 65.2, 64.2, 9.4, 9.1, 0 kW), but the parameter sheet
-  lists 65.2, 64.2, 62.3, 60.5, 58.7 kW, i.e. no retirement. The code follows the formula. Effect is < 0.5% of demand.
-- The sync note also mentions the export price and export cap; the report text still says 6.41¢ and 6,860 kW.
-- Table 4 calls the flexibility share β while constraint 14 uses φ (same value, 0.10).
-- Carbon emissions are required by the course but aren't in the formulation yet.
+## Open questions
+Values marked UNCONFIRMED are `None` in `model/params.py`, and the model refuses to run until they're set.
+
+**Answered by parameters v4:** battery costs (Q1), battery O&M (Q2; 2028 battery uses 13.34 from y = 2043), export price and cap still
+6.41¢ / 6,860 kW (Q5), B^min = 4,000 confirmed (Q6), flexibility symbol is φ (Q9; Table 4 of the report still says β).
+
+**Documents still disagree: code follows the report formulation until answered**
+- Q3. Existing PV E_y: the formula retires the 60 kW EV3 array after 25 years (65.2, 64.2, 9.4, 9.1, 0 kW); parameters v4 still
+  lists 65.2, 64.2, 62.3, 60.5, 58.7 kW (no retirement). Which one? (Code: formula.)
+- Q4. Solar profile: the formulation uses one CF_t; parameters v4 says "alternating scenarios per representative year".
+  Which? If alternating, which scenario goes with which year? (Code: average of S1–S3.)
+
+**Not stated anywhere: code made a choice that needs approval**
+- Q7. G^imp,max_y and c^imp_{y,t} are indexed by y but given one value or schedule. Same in every representative year? (Code: yes.)
+- Q8. TOU calendar: on/mid/off-peak hours follow the weekdays and Ontario holidays of the data calendar
+  (Oct 2025 to Sep 2026) in every representative year. OK, or use each representative year's own calendar?
+
+**Course requirements not in the formulation yet** (see `docs/requirements.md`)
+- Q10. Carbon emissions: an emission intensity value or hourly series, and is it a cost, a cap, or reported only?
+- Q11. Resilience: how will it be formulated (v3 removed u and α), and what does unmet demand cost?
+- Q12. Alternative objectives (minimize total grid draw, minimize peak grid draw) and the non-zero BESS test: exact equations?

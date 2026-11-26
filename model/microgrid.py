@@ -111,7 +111,7 @@ def build(p: Params):
     cost = {
         "C_inv": gp.quicksum(p.D(v) * (p.c_PV[v] * xPV[v] + p.F_PV * zPV[v] + p.c_B[v] * xB[v] + p.F_B * zB[v])
                              for v in V),
-        "C_OM": gp.quicksum(p.W(y) * (p.m_PV * xPV[v] + p.m_B(y, v) * xB[v]) for y in Y for v in V if v < y),
+        "C_OM": gp.quicksum(p.W(y) * (p.m_PV * xPV[v] + p.m_B[y, v] * xB[v]) for y in Y for v in V if v < y),
         "C_rep": p.D(2043) * p.c_rep * xB[2028],
         "C_RV": p.D(2053) * (1 / 25 * p.c_PV[2028] * xPV[2028] + 13 / 25 * p.c_PV[2040] * xPV[2040]
                              + 3 / 15 * p.c_B[2040] * xB[2040] + 6 / 15 * p.c_rep * xB[2028]),
@@ -145,6 +145,8 @@ def main():
     a = ap.parse_args()
     p = Params(days=a.days, solar=a.solar, g=a.growth, phi=a.phi,
                G_exp_max=0.0 if a.no_export else Params.G_exp_max)
+    if p.missing():
+        sys.exit(f"Cannot run: unconfirmed parameters in model/params.py: {', '.join(p.missing())}")
 
     m, inv, ops, cost = build(p)
     m.optimize()
