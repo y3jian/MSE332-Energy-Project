@@ -26,7 +26,9 @@ class Params:
     PV_max: float = 6_860.0                   # kW (Campus Plan carport lots)
     delta: float = 0.005                      # annual PV degradation
     l_PV: int = 25                            # PV lifespan, years
-    solar: str = "Avg CF"                     # CF column: "Avg CF", "S1_frac", "S2_frac", "S3_frac"
+    # CF_{y,t}: EV3 scenario used in each representative year (team decision; columns of the cleaned solar file)
+    solar: dict = field(default_factory=lambda: {2028: "S1_frac", 2031: "S2_frac", 2037: "S3_frac",
+                                                 2043: "S1_frac", 2049: "S2_frac"})
 
     # --- battery
     c_B: dict = field(default_factory=lambda: {2028: 410.2, 2040: 309.4})  # CAD/kWh (NLR 2025 battery cost
@@ -50,9 +52,10 @@ class Params:
     phi: float = 0.10                         # max hourly demand shift, fraction of demand
 
     # --- grid
+    # Grid values are constant in every representative year (team decision, Q7): prices constant in real terms
     tou: dict = field(default_factory=lambda: {"off": 0.091, "mid": 0.146, "on": 0.189})  # CAD/kWh (OEB, Nov 2026)
     c_exp: float = 0.0641                     # export credit, CAD/kWh (IESO 2025)
-    G_imp_max: float = 30_436.0               # kW (P5)
+    G_imp_max: float = 30_436.0               # kW (P5: projected 2052 peak + 10% margin)
     G_exp_max: float = 6_860.0                # kW (P5; 0 = no-export scenario)
     dt: float = 1.0                           # interval length, h
 

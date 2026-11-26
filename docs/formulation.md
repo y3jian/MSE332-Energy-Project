@@ -41,7 +41,7 @@ min Z = C^inv + C^OM + C^rep − C^RV + C^grid
 3. Σ_v x^PV_v ≤ PV^max
 4. Σ_v x^B_v ≤ B^max
 5. CapB_y = Σ_{v<y} x^B_v  ∀y
-6. pv_{y,t} ≤ CF_t (E_y + Σ_{v<y} d_{y,v} x^PV_v) Δt
+6. pv_{y,t} ≤ CF_{y,t} (E_y + Σ_{v<y} d_{y,v} x^PV_v) Δt
 7. soc_{y,t} = soc_{y,t−1} + η ch_{y,t} − dis_{y,t}/η
 8. SOC^min CapB_y ≤ soc_{y,t} ≤ CapB_y
 9. ch_{y,t}, dis_{y,t} ≤ CapB_y / h^B · Δt
@@ -70,7 +70,7 @@ min Z = C^inv + C^OM + C^rep − C^RV + C^grid
 | PV^max / PV^min | 6,860 / 200 kW | Campus Plan / ATB reference system |
 | J: E^PV_j, a_j | 60 kW (2012), 10 kW (2024) | EV3 arrays (progress report, Table 5) |
 | l^PV, δ | 25 yr, 0.005 | ATB / UW Climate Institute |
-| CF_t | `Avg CF` from `data/processed/Solar PV data cleaned.csv` (S1–S3 for sensitivity) | given data (P2) |
+| CF_{y,t} | EV3 scenario by year: 2028 S1, 2031 S2, 2037 S3, 2043 S1, 2049 S2 (`S1_frac`… in `data/processed/Solar PV data cleaned.csv`) | given data (P2); team decision |
 | c^B_v | 410.2 (2028), 309.4 (2040) CAD/kWh (USD 293 / 221 × 1.4) | NLR battery cost projections, 2025 update |
 | c^rep_2043 | 292.6 CAD/kWh (USD 209 × 1.4) | NLR battery cost projections, 2025 update |
 | F^B | 50,000 CAD | DOE PV system cost benchmarks |
@@ -90,17 +90,14 @@ Values marked UNCONFIRMED are `None` in `model/params.py`, and the model refuses
 
 **Answered by parameters v4:** battery costs (Q1), battery O&M (Q2; 2028 battery uses 13.34 from y = 2043), export price and cap still
 6.41¢ / 6,860 kW (Q5), B^min = 4,000 confirmed (Q6), flexibility symbol is φ (Q9; Table 4 of the report still says β).
-
-**Documents still disagree: code follows the report formulation until answered**
-- Q3. Existing PV E_y: the formula retires the 60 kW EV3 array after 25 years (65.2, 64.2, 9.4, 9.1, 0 kW); parameters v4 still
-  lists 65.2, 64.2, 62.3, 60.5, 58.7 kW (no retirement). Which one? (Code: formula.)
-- Q4. Solar profile: the formulation uses one CF_t; parameters v4 says "alternating scenarios per representative year".
-  Which? If alternating, which scenario goes with which year? (Code: average of S1–S3.)
-
-**Not stated anywhere: code made a choice that needs approval**
-- Q7. G^imp,max_y and c^imp_{y,t} are indexed by y but given one value or schedule. Same in every representative year? (Code: yes.)
-- Q8. TOU calendar: on/mid/off-peak hours follow the weekdays and Ontario holidays of the data calendar
-  (Oct 2025 to Sep 2026) in every representative year. OK, or use each representative year's own calendar?
+**Answered by the team:** Q3, E_y uses the report formula (60 kW EV3 array retires in 2037): 65.2, 64.2, 9.4, 9.1, 0 kW.
+  The parameter sheet's 62.3 / 60.5 / 58.7 kW values are outdated.
+  Q4, solar uses alternating scenarios CF_{y,t} (not the average): 2028 S1, 2031 S2, 2037 S3, 2043 S1, 2049 S2.
+  The report's constraint (6) and Table 4 should change CF_t to CF_{y,t}.
+  Q7, G^imp,max = 30,436 kW and the TOU prices are constant in every representative year: the import limit is sized
+  on projected 2052 peak demand + 10% margin, and prices are held constant in real terms (demand still grows 2%/yr).
+  Q8, the TOU schedule uses the data calendar (Oct 2025 to Sep 2026) in every representative year, so peak hours stay
+  aligned with the demand profile's weekdays and holidays (assumption: the same annual calendar pattern repeats).
 
 **Course requirements not in the formulation yet** (see `docs/requirements.md`)
 - Q10. Carbon emissions: an emission intensity value or hourly series, and is it a cost, a cap, or reported only?

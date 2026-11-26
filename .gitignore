@@ -1,3 +1,4 @@
 model/results/
 model/infeasible.ilp
 __pycache__/
+gurobi.lic

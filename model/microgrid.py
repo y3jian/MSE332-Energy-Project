@@ -29,13 +29,15 @@ HOLIDAYS = pd.to_datetime(["2025-10-13", "2025-12-25", "2025-12-26", "2026-01-01
 
 # ------------------------------------------------------------------ input data
 def load_inputs(p: Params) -> pd.DataFrame:
-    """Hourly baseline demand L_0,t, solar capacity factor CF_t and TOU import price c_imp_t."""
+    """Hourly baseline demand L_0,t, solar scenarios (S1-S3 capacity factors) and TOU import price c_imp_t."""
     df = pd.read_csv(ROOT / "data" / "processed" / "demand_hourly.csv")
     solar = pd.read_csv(ROOT / "data" / "processed" / "Solar PV data cleaned.csv")   # cleaned by P2
     assert (solar[["Month", "Day", "Hour"]].values == df[["Month", "Day", "Hour"]].values).all()
-    df["CF"] = solar[p.solar]
+    for col in ("S1_frac", "S2_frac", "S3_frac", "Avg CF"):
+        df[col] = solar[col]
 
-    # OEB TOU schedule. Weekends and holidays are off-peak all day.
+    # OEB TOU schedule on the data calendar (Oct 2025 to Sep 2026), repeated in every representative year
+    # (team decision, Q8) so peak hours stay aligned with the demand profile. Weekends and holidays: off-peak.
     date = pd.to_datetime(dict(year=np.where(df.Month >= 10, 2025, 2026), month=df.Month, day=df.Day))
     h = df.Hour - 1                                            # hour-beginning 0-23
     weekday = (date.dt.dayofweek < 5) & ~date.isin(HOLIDAYS)
@@ -53,7 +55,7 @@ def build(p: Params):
     full = load_inputs(p)
     df = full.iloc[:24 * p.days]
     H = len(df)
-    L0, CF, c_imp = df.demand_kW.to_numpy(), df.CF.to_numpy(), df.c_imp.to_numpy()
+    L0, c_imp = df.demand_kW.to_numpy(), df.c_imp.to_numpy()
     L0_crit = df.groupby("k").demand_kW.transform("min").to_numpy()   # daily minimum of L_0
     L0_peak = full.demand_kW.max()                                     # full-year peak of L_0
     scale = 365 / p.days            # test runs: scale operating cost up to a full year
@@ -78,6 +80,7 @@ def build(p: Params):
         running = [v for v in V if v < y]                # builds operate from the year after install
         grow = (1 + p.g) ** (y - BASE_DATA_YEAR)
         L = L0 * grow                                    # L_{y,t}
+        CF = df[p.solar[y]].to_numpy()                   # CF_{y,t}: this year's EV3 scenario
         F_dn = np.minimum(p.phi * L, (L0 - L0_crit) * grow)   # F-_{y,t}: critical load floor
         F_up = np.minimum(p.phi * L, (L0_peak - L0) * grow)   # F+_{y,t}: no new peak
 
@@ -138,13 +141,15 @@ def validate(p: Params, ops, tol=1e-3):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=365)
-    ap.add_argument("--solar", default="Avg CF", choices=["Avg CF", "S1_frac", "S2_frac", "S3_frac"])
+    ap.add_argument("--solar", choices=["S1_frac", "S2_frac", "S3_frac", "Avg CF"],
+                    help="sensitivity: use one scenario in every year (default: per-year mapping in params.py)")
     ap.add_argument("--growth", type=float, default=0.02)
     ap.add_argument("--phi", type=float, default=0.10, help="demand flexibility share (0 = off)")
     ap.add_argument("--no-export", action="store_true")
     a = ap.parse_args()
-    p = Params(days=a.days, solar=a.solar, g=a.growth, phi=a.phi,
-               G_exp_max=0.0 if a.no_export else Params.G_exp_max)
+    p = Params(days=a.days, g=a.growth, phi=a.phi, G_exp_max=0.0 if a.no_export else Params.G_exp_max)
+    if a.solar:
+        p.solar = {y: a.solar for y in Y}
     if p.missing():
         sys.exit(f"Cannot run: unconfirmed parameters in model/params.py: {', '.join(p.missing())}")
 
