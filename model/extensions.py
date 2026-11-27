@@ -15,26 +15,49 @@ def force_battery(m, inv, p: Params):
     m.addConstr(inv["xB"].sum() >= p.B_test, "battery_test")
 
 
+def no_investment(m, inv):
+    """Baseline: existing system only, x^PV_v = x^B_v = z^PV_v = z^B_v = 0 (lifecycle cost objective kept)."""
+    for key in ("xPV", "xB", "zPV", "zB"):
+        for v in inv[key]:
+            inv[key][v].UB = 0.0
+
+
+def relax_binaries(m, inv):
+    """Approach comparison: LP relaxation, z^PV_v and z^B_v in [0, 1] instead of {0, 1}."""
+    for key in ("zPV", "zB"):
+        for v in inv[key]:
+            inv[key][v].VType = GRB.CONTINUOUS
+
+
 def cost_cap(m, p: Params, Z_star):
     """Z <= (1 + eps) Z*: keeps alternative-objective designs within eps of the minimum lifecycle cost.
-    Z is the base objective expression set in microgrid.build(); call this before replacing it."""
+    Z is the base objective expression set in microgrid.build(); call this before replacing it. Returns Z."""
     m.update()
-    m.addConstr(m.getObjective() <= (1 + p.eps) * Z_star, "cost_cap")
+    Z = m.getObjective()
+    m.addConstr(Z <= (1 + p.eps) * Z_star, "cost_cap")
+    return Z
+
+
+def set_alternative(m, Z, Z_alt):
+    """Lexicographic objectives: minimize Z_alt first, then Z among the Z_alt-optimal solutions (tie-break,
+    so the reported cost and design are the cheapest of the equally good alternatives)."""
+    m.setObjectiveN(Z_alt, index=0, priority=1, name="alternative")
+    m.setObjectiveN(Z, index=1, priority=0, name="Z")
 
 
 def min_imports(m, ops, p: Params, Z_star):
     """Alternative objective 1: min Z^imp = sum_y n_y sum_t g^imp_{y,t} (undiscounted), with Z <= (1 + eps) Z*."""
-    cost_cap(m, p, Z_star)
-    m.setObjective(sum(len(A_Y[y]) * m._scale * o["imp"].sum() for y, o in ops.items()), GRB.MINIMIZE)
+    Z = cost_cap(m, p, Z_star)
+    set_alternative(m, Z, sum(len(A_Y[y]) * m._scale * o["imp"].sum() for y, o in ops.items()))
 
 
 def min_peak(m, ops, p: Params, Z_star):
     """Alternative objective 2: min Z^peak = P^peak, with g^imp_{y,t} <= P^peak and Z <= (1 + eps) Z*."""
-    cost_cap(m, p, Z_star)
+    Z = cost_cap(m, p, Z_star)
     P_peak = m.addMVar(1, name="P_peak")                       # kW, max grid draw over the horizon
     for y, o in ops.items():
         m.addConstr(o["imp"] <= P_peak, f"peak_{y}")
-    m.setObjective(P_peak.sum(), GRB.MINIMIZE)
+    set_alternative(m, Z, P_peak.sum())
 
 
 def allow_unmet(m, ops, cost, p: Params):

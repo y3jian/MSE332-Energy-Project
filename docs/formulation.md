@@ -90,8 +90,19 @@ Each is a separate run on the base model. Z is the base lifecycle cost expressio
   quantities), subject to all base constraints and the lifecycle cost cap Z ≤ (1 + ε) Z*, ε = 0.10.
 - **Alt. objective 2, minimize peak grid draw:** new variable P^peak ≥ 0 (kW); min Z^peak = P^peak, subject to
   g^imp_{y,t} ≤ P^peak ∀y, t, all base constraints and Z ≤ (1 + ε) Z*.
+- **Tie-break (both alternative objectives):** solved lexicographically, the alternative objective first, then min Z among
+  its optimal solutions (Gurobi multi-objective with priorities). Without this, cost and emissions are an arbitrary pick
+  among equally good solutions. (Added on the user's instruction; the team can remove it.)
 - **Non-zero battery test:** lifecycle cost objective plus Σ_v x^B_v ≥ B^Test, B^Test = B^min = 4,000 kWh
   (with (2), this forces z^B_v = 1 in at least one investment year).
+
+## Baseline and comparison of approaches (code: `model/extensions.py`, `analysis/run_cases.ipynb`)
+(Chosen on the user's instruction from the options proposed; the team can change them.)
+- **Baseline:** no new investment, x^PV_v = x^B_v = z^PV_v = z^B_v = 0, all other constraints and the cost objective kept.
+  Official baseline: φ = 0 (UW today, no load shifting). Second version with φ = 0.10 splits the savings into
+  load shifting and PV/battery investment. Equivalent annual saving = lifecycle saving / Σ_{a=2028}^{2052} D_a.
+- **Comparison of approaches:** MILP (base) vs LP relaxation (z^PV_v, z^B_v ∈ [0, 1]) vs MILP without demand
+  flexibility (φ = 0), compared on lifecycle cost, design, model size and solve time.
 
 ## Sensitivity analysis and stress cases (team spec, code: `analysis/run_cases.ipynb`)
 Lifecycle cost objective and all base constraints; every run starts from the base parameters.
