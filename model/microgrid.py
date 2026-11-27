@@ -75,6 +75,10 @@ def build(p: Params):
     m.addConstr(xPV.sum() <= p.PV_max, "3_pv_total")                         # (3)
     m.addConstr(xB.sum() <= p.B_max, "4_b_total")                            # (4)
 
+    # c^exp_t = min(c^exp, c^imp_t): the export credit never exceeds the hour's import price (team decision), so
+    # buying and selling back earns nothing. Only active when import prices drop below 6.41 c/kWh (import price x0.5).
+    c_exp = np.minimum(p.c_exp, c_imp)
+
     C_grid, ops = 0, {}
     for y in Y:
         running = [v for v in V if v < y]                # builds operate from the year after install
@@ -108,7 +112,7 @@ def build(p: Params):
         m.addConstr(imp + pv + dis + u == L + f + ch + exp, f"11_balance_{y}")                # (11), u = 0 in base
         m.addConstr(f.reshape(H // 24, 24).sum(axis=1) == 0, f"15_day_{y}")                  # (15)
 
-        C_grid += p.W(y) * scale * (c_imp @ imp - p.c_exp * exp.sum())
+        C_grid += p.W(y) * scale * (c_imp @ imp - c_exp @ exp)
         ops[y] = dict(L=L, f=f, u=u, imp=imp, exp=exp, pv=pv, ch=ch, dis=dis, soc=soc, CapB=CapB)
 
     # Objective: min Z = C_inv + C_OM + C_rep - C_RV + C_grid

@@ -33,7 +33,9 @@ min Z = C^inv + C^OM + C^rep − C^RV + C^grid
 - C^OM = Σ_y W_y ( m^PV Σ_{v<y} x^PV_v + Σ_{v<y} m^B_{y,v} x^B_v )
 - C^rep = D_2043 c^rep_2043 x^B_2028
 - C^RV = D_2053 ( 1/25 c^PV_2028 x^PV_2028 + 13/25 c^PV_2040 x^PV_2040 + 3/15 c^B_2040 x^B_2040 + 6/15 c^rep_2043 x^B_2028 )
-- C^grid = Σ_y W_y Σ_t ( c^imp_t g^imp_{y,t} − c^exp g^exp_{y,t} )
+- C^grid = Σ_y W_y Σ_t ( c^imp_t g^imp_{y,t} − c^exp_t g^exp_{y,t} ), with c^exp_t = min(c^exp, c^imp_t) (team decision:
+  the export credit never exceeds the hour's import price, so buying and selling back earns nothing; only active when
+  import prices fall below 6.41¢/kWh, i.e. the import price × 0.5 sensitivity)
 
 ## Carbon emissions (reported, not optimized; code: `emissions()` in `model/microgrid.py`)
 E^CO2 = Σ_y n_y Σ_t e^grid g^imp_{y,t}, with n_y = |A_y| (1, 6, 6, 6, 6)
@@ -90,6 +92,21 @@ Each is a separate run on the base model. Z is the base lifecycle cost expressio
   g^imp_{y,t} ≤ P^peak ∀y, t, all base constraints and Z ≤ (1 + ε) Z*.
 - **Non-zero battery test:** lifecycle cost objective plus Σ_v x^B_v ≥ B^Test, B^Test = B^min = 4,000 kWh
   (with (2), this forces z^B_v = 1 in at least one investment year).
+
+## Sensitivity analysis and stress cases (team spec, code: `analysis/run_cases.ipynb`)
+Lifecycle cost objective and all base constraints; every run starts from the base parameters.
+- Sensitivity 1, battery capital cost: c^B_2028, c^B_2040 and c^rep_2043 × {0.50, 0.75, 1.00, 1.25, 1.50} (F^B and m^B unchanged;
+  C^RV uses the scaled costs). If no battery is built, find the break-even multiplier by bisection.
+- Sensitivity 2, grid import price: all TOU prices × {0.50, 0.75, 1.00, 1.25, 1.50}; c^exp unchanged. Where
+  c^imp_t < c^exp (× 0.5, off-peak hours) the export credit is capped at c^imp_t, so there is no resale profit.
+- S1 low solar: lowest-generation scenario (S1, 1,544 kWh/kW per year) in every representative year.
+- S2 high growth: g = 0.04. S3 discount rate: r = 0.03 and 0.07. S4 no export credit: c^exp = 0.
+- S5: low solar + battery cost × 1.5 + import price × 0.75. S6: low solar + g = 0.04 + import price × 1.5.
+- Sensitivity 3, PV capital cost: c^PV_2028 and c^PV_2040 × {0.50, 0.75, 1.00, 1.25, 1.50} (F^PV and m^PV unchanged;
+  C^RV uses the scaled costs).
+- Infeasible runs are re-run with u_{y,t} ≤ L_{y,t} in every hour and C^unmet = M Σ_y W_y Σ_t u_{y,t}, with the same
+  M = 10 CAD/kWh as the resilience analysis (team decision: one penalty everywhere).
+- Physical totals use n_y (undiscounted); financial totals use W_y.
 
 ## Parameter values
 | Symbol | Value | Source |

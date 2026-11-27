@@ -54,7 +54,8 @@ class Params:
     # --- grid
     # Grid values are constant in every representative year (team decision, Q7): prices constant in real terms
     tou: dict = field(default_factory=lambda: {"off": 0.091, "mid": 0.146, "on": 0.189})  # CAD/kWh (OEB, Nov 2026)
-    c_exp: float = 0.0641                     # export credit, CAD/kWh (IESO 2025)
+    c_exp: float = 0.0641                     # export credit, CAD/kWh (IESO 2025); capped at each hour's import price
+                                              # in microgrid.build (team decision)
     G_imp_max: float = 30_436.0               # kW (P5: projected 2052 peak + 10% margin)
     G_exp_max: float = 6_860.0                # kW (P5; 0 = no-export scenario)
     dt: float = 1.0                           # interval length, h
@@ -63,7 +64,8 @@ class Params:
     e_grid: float = 0.059                     # Ontario grid emissions factor, kg CO2e/kWh (team formulation; citation TBD)
 
     # --- resilience extension (docs/team/resilience.pdf); not used by the base model
-    M: float = 10.0                           # unmet-demand penalty, CAD/kWh (team decision; justification TBD in report)
+    M: float = 10.0                           # unmet-demand penalty, CAD/kWh, used in every unmet-demand run (resilience and
+                                              # stress-case recovery; team decision; justification TBD in report)
 
     # --- alternative objectives and non-zero battery test (Q12, team decision); not used by the base model
     eps: float = 0.10                         # lifecycle cost cap for alternative objectives: Z <= (1 + eps) Z*

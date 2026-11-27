@@ -37,6 +37,17 @@ def min_peak(m, ops, p: Params, Z_star):
     m.setObjective(P_peak.sum(), GRB.MINIMIZE)
 
 
+def allow_unmet(m, ops, cost, p: Params):
+    """Stress-case infeasibility recovery: u_{y,t} <= L_{y,t} in every hour, penalized with
+    C_unmet = M sum_y W_y sum_t u_{y,t} (same penalty as the resilience runs)."""
+    if p.M is None:
+        raise ValueError("M (unmet-demand penalty) is unconfirmed: set it in params.py")
+    for y, o in ops.items():
+        o["u"].UB = o["L"]
+        o["u"].Obj = p.M * p.W(y) * m._scale
+    cost["C_unmet"] = sum(p.M * p.W(y) * m._scale * o["u"].sum() for y, o in ops.items())
+
+
 def peak_day(df_full):
     """Day index k (1..365) of the peak-demand day. Demand grows by the same factor every
     hour, so it's the same day in every representative year (July 2 in our data)."""
