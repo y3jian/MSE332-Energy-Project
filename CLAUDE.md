@@ -41,12 +41,17 @@ Solved in Python with Gurobi.
 ## Repo layout
 - `data/`: raw inputs; `data/processed/` cleaned demand (`demand_hourly.csv`) and solar files
 - `demand/demand_analysis.ipynb`: makes `demand_hourly.csv` (Person 4)
-- `model/params.py`: all parameters; `model/microgrid.py`: builds, solves and validates the MILP
+- `model/params.py`: all parameters
+- `model/microgrid.py`: the base MILP (constraints (1)–(15), cost objective), solve and validation
+- `model/extensions.py`: add-ons applied to the base model (carbon, resilience, forced battery,
+  alternative objectives, baseline), one function each
+- `analysis/run_cases.ipynb`: runs every case (baseline, sensitivity, stress, objectives) and builds report tables/figures
 - `model/results/`: solver output (git-ignored)
+- See `model/CLAUDE.md` for the code rules of this layout.
 
 ## Running and checking
 - Use the project venv: `.venv/bin/python model/microgrid.py`
-- The full model needs the Gurobi academic license. Use `--days 2` for a quick test under the free license.
+- Gurobi academic license is at `~/gurobi.lic` (never commit it). Full run: ~5 s. `--days 1` for a quick test.
 - After any model change, run the quick test and confirm the validation lines print `OK`.
 
 ## Team (who owns what; ask before rewriting someone else's section)

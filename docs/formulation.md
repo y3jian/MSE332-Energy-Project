@@ -60,6 +60,22 @@ min Z = C^inv + C^OM + C^rep − C^RV + C^grid
 - C_{y,t} = min over the day of t of L_{y,t} (critical load); P^max_y = max_t L_{y,t}
 - F⁻_{y,t} = min{φ L_{y,t}, L_{y,t} − C_{y,t}}; F⁺_{y,t} = min{φ L_{y,t}, P^max_y − L_{y,t}}
 
+## Resilience analysis (`docs/team/resilience.pdf`, code: `model/extensions.py`)
+A variant of the base model: all base constraints apply unless modified here; PV and battery are re-optimized in each run.
+- α_{y,t} ∈ [0,1]: fraction of grid capacity available (1 normal, 0.5 partial restriction, 0 complete outage)
+- u_{y,t} ≥ 0: unmet demand (kWh); M = 10 CAD/kWh: penalty per kWh unmet (team decision; the report still needs its justification)
+- Objective: min Z^res = C^inv + C^OM + C^rep − C^RV + C^grid + C^unmet, with C^unmet = M Σ_y W_y Σ_t u_{y,t}
+- Modified (11): pv + g^imp + dis + u = L + f + ch + g^exp
+- Modified (12): g^imp_{y,t} ≤ α_{y,t} G^imp,max;  modified (13): g^exp_{y,t} ≤ α_{y,t} G^exp,max
+- New: 0 ≤ u_{y,t} ≤ (1 − α_{y,t}) L_{y,t}  (unmet demand only during disruptions)
+- Runs: (1) normal, α = 1 everywhere (= base model); (2) partial, α = 0.5 for the 24 h of the peak-demand day;
+  (3) complete outage, α = 0 for the same 24 h. Peak-demand day = July 2 (k = 183), the highest hour and the highest daily
+  energy, and the same day in every representative year because growth is uniform.
+- Report for each run: PV and battery capacity, lifecycle cost, total unmet demand, emissions.
+- Limitations: the outage recurs once per calendar year represented; perfect foresight (the battery can pre-charge).
+- Code: the base model contains u with upper bound 0 (so base (11) is unchanged); `add_outage` sets the α bounds,
+  the u bound and the M objective coefficients.
+
 ## Parameter values
 | Symbol | Value | Source |
 |---|---|---|
@@ -101,5 +117,5 @@ Values marked UNCONFIRMED are `None` in `model/params.py`, and the model refuses
 
 **Course requirements not in the formulation yet** (see `docs/requirements.md`)
 - Q10. Carbon emissions: an emission intensity value or hourly series, and is it a cost, a cap, or reported only?
-- Q11. Resilience: how will it be formulated (v3 removed u and α), and what does unmet demand cost?
+- Q13. Emissions for each resilience run are required by the resilience section, but they depend on Q10.
 - Q12. Alternative objectives (minimize total grid draw, minimize peak grid draw) and the non-zero BESS test: exact equations?

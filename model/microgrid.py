@@ -93,6 +93,7 @@ def build(p: Params):
         imp = m.addMVar(H, ub=p.G_imp_max * p.dt, name=f"imp_{y}")   # (12)
         exp = m.addMVar(H, ub=p.G_exp_max * p.dt, name=f"exp_{y}")   # (13)
         f = m.addMVar(H, lb=-F_dn, ub=F_up, name=f"f_{y}")           # (14)
+        u = m.addMVar(H, ub=0.0, name=f"u_{y}")          # unmet demand: fixed at 0 here; extensions.add_outage loosens it
 
         m.addConstr(CapB[0] == gp.quicksum(xB[v] for v in running), f"5_capB_{y}")            # (5)
         m.addConstr(PVcap[0] == p.E(y) + gp.quicksum(p.d(y, v) * xPV[v] for v in running))
@@ -104,11 +105,11 @@ def build(p: Params):
         m.addConstr(ch <= CapB / p.h_B * p.dt, f"9_ch_{y}")                                   # (9)
         m.addConstr(dis <= CapB / p.h_B * p.dt, f"9_dis_{y}")
         m.addConstr(soc[H - 1] == p.SOC_0 * CapB[0], f"10_socend_{y}")                        # (10)
-        m.addConstr(imp + pv + dis == L + f + ch + exp, f"11_balance_{y}")                    # (11)
+        m.addConstr(imp + pv + dis + u == L + f + ch + exp, f"11_balance_{y}")                # (11), u = 0 in base
         m.addConstr(f.reshape(H // 24, 24).sum(axis=1) == 0, f"15_day_{y}")                  # (15)
 
         C_grid += p.W(y) * scale * (c_imp @ imp - p.c_exp * exp.sum())
-        ops[y] = dict(L=L, f=f, imp=imp, exp=exp, pv=pv, ch=ch, dis=dis, soc=soc, CapB=CapB)
+        ops[y] = dict(L=L, f=f, u=u, imp=imp, exp=exp, pv=pv, ch=ch, dis=dis, soc=soc, CapB=CapB)
 
     # Objective: min Z = C_inv + C_OM + C_rep - C_RV + C_grid
     cost = {
@@ -121,6 +122,7 @@ def build(p: Params):
         "C_grid": C_grid,
     }
     m.setObjective(cost["C_inv"] + cost["C_OM"] + cost["C_rep"] - cost["C_RV"] + cost["C_grid"], GRB.MINIMIZE)
+    m._scale = scale                # extensions weight their operating terms the same way as C_grid
     return m, dict(xPV=xPV, xB=xB, zPV=zPV, zB=zB), ops, cost
 
 
@@ -128,13 +130,13 @@ def build(p: Params):
 def validate(p: Params, ops, tol=1e-3):
     """Hourly energy balance, battery SOC limits and daily flexibility sum = 0."""
     for y, o in ops.items():
-        imp, exp, pv, ch, dis, soc, f = (o[k].X for k in ("imp", "exp", "pv", "ch", "dis", "soc", "f"))
+        imp, exp, pv, ch, dis, soc, f, u = (o[k].X for k in ("imp", "exp", "pv", "ch", "dis", "soc", "f", "u"))
         capB = o["CapB"].X[0]
-        bal = np.abs(imp + pv + dis - (o["L"] + f + ch + exp)).max()
+        bal = np.abs(imp + pv + dis + u - (o["L"] + f + ch + exp)).max()
         day = np.abs(f.reshape(-1, 24).sum(axis=1)).max()
         ok = bal < tol and day < tol and soc.min() >= p.SOC_min * capB - tol and soc.max() <= capB + tol
         print(f"  {y}: {'OK' if ok else 'FAIL'} | balance error {bal:.1e} kWh | daily shift sum {day:.1e} | "
-              f"SOC {soc.min():,.0f}-{soc.max():,.0f} of {capB:,.0f} kWh")
+              f"SOC {soc.min():,.0f}-{soc.max():,.0f} of {capB:,.0f} kWh | unmet {u.sum():,.0f} kWh")
 
 
 # ------------------------------------------------------------------ main

@@ -59,6 +59,9 @@ class Params:
     G_exp_max: float = 6_860.0                # kW (P5; 0 = no-export scenario)
     dt: float = 1.0                           # interval length, h
 
+    # --- resilience extension (docs/team/resilience.pdf); not used by the base model
+    M: float = 10.0                           # unmet-demand penalty, CAD/kWh (team decision; justification TBD in report)
+
     # --- run
     days: int = 365                           # fewer days only for quick tests
 
@@ -79,10 +82,13 @@ class Params:
         """Remaining output fraction in year y of PV built in year v (runs from v + 1)."""
         return (1 - self.delta) ** (y - v - 1)
 
-    def missing(self):
-        """Names of parameters the team has not confirmed yet (None, also inside dicts)."""
+    def missing(self, skip=("M",)):
+        """Unconfirmed parameters (None, also inside dicts). Extension-only parameters are
+        skipped here and checked by the extension that uses them."""
         out = []
         for name, value in vars(self).items():
+            if name in skip:
+                continue
             if value is None:
                 out.append(name)
             elif isinstance(value, dict):
