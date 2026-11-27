@@ -1,6 +1,6 @@
 """
 UW microgrid MILP (solar PV + battery + grid + demand flexibility), built and solved with Gurobi.
-Constraint numbers (1)-(15) and cost terms match docs/formulation.md.
+Constraint numbers (1)-(15), cost terms and the reported emissions E^CO2 match docs/formulation.md.
 
 Run from the repo root:
     .venv/bin/python model/microgrid.py              # base case
@@ -18,7 +18,7 @@ import pandas as pd
 from gurobipy import GRB
 
 sys.path.insert(0, str(Path(__file__).parent))
-from params import BASE_DATA_YEAR, V, Y, Params  # noqa: E402
+from params import A_Y, BASE_DATA_YEAR, V, Y, Params  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -139,6 +139,12 @@ def validate(p: Params, ops, tol=1e-3):
               f"SOC {soc.min():,.0f}-{soc.max():,.0f} of {capB:,.0f} kWh | unmet {u.sum():,.0f} kWh")
 
 
+def emissions(p: Params, ops, scale):
+    """E^CO2 = sum_y n_y sum_t e^grid g^imp_{y,t} in kg CO2e. Not discounted; exports get no credit.
+    scale = 365/days, so test runs report a full year like C_grid."""
+    return sum(len(A_Y[y]) * p.e_grid * scale * o["imp"].X.sum() for y, o in ops.items())
+
+
 # ------------------------------------------------------------------ main
 def main():
     ap = argparse.ArgumentParser()
@@ -164,6 +170,7 @@ def main():
     print(f"\nTotal discounted cost Z = ${m.ObjVal:,.0f}")
     for k, e in cost.items():
         print(f"  {k:7s} ${e.getValue():,.0f}")
+    print(f"Emissions 2028-2052: {emissions(p, ops, m._scale) / 1e3:,.0f} t CO2e")
     for v in V:
         print(f"  {v}: PV {inv['xPV'][v].X:,.0f} kW, battery {inv['xB'][v].X:,.0f} kWh")
     print("Validation:")

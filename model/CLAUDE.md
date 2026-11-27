@@ -8,8 +8,8 @@
 | File | Job |
 |---|---|
 | `params.py` | every number, with units and source. Nothing else. |
-| `microgrid.py` | the **base model only**: report constraints (1)–(15) and the cost objective, plus validation. It must match the base formulation line for line. |
-| `extensions.py` | one short function per add-on (carbon, outage/resilience, forced battery, alternative objectives, baseline). Each takes the built model, adds or changes only its own report-defined terms, and is tagged with its equation numbers. |
+| `microgrid.py` | the **base model only**: report constraints (1)–(15) and the cost objective, plus validation and the reported emissions E^CO2 (a post-solve calculation, not part of the model). It must match the base formulation line for line. |
+| `extensions.py` | one short function per add-on (outage/resilience, forced battery, alternative objectives with the cost cap, baseline). Each takes the built model, adds or changes only its own report-defined terms, and is tagged with its equation numbers. |
 | `../analysis/run_cases.ipynb` | one cell per case: build base model → apply add-ons → solve → add a row to the results table. Produces the report's tables and figures. |
 
 - **Never copy the base model** into another file or a case. Fix things once, in `microgrid.py`.
@@ -26,4 +26,4 @@
   Anything that adds equations belongs in `extensions.py`.
 - Validation must check: hourly energy balance, SOC within limits, daily flexibility sum = 0,
   and print one OK/FAIL line per representative year.
-- Keep the output short: total cost, each cost component, installed sizes, validation lines.
+- Keep the output short: total cost, each cost component, emissions, installed sizes, validation lines.

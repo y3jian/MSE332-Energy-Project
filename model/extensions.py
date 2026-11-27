@@ -1,11 +1,40 @@
 """
 Add-ons applied to the base model built by microgrid.build(). Each function changes only
 its own report-defined terms; the base model itself is never copied or rewritten.
-Equations: docs/formulation.md, section "Resilience analysis".
+Equations: docs/formulation.md, sections "Alternative objectives and non-zero battery test"
+and "Resilience analysis".
 """
 import numpy as np
+from gurobipy import GRB
 
-from params import Params
+from params import A_Y, Params
+
+
+def force_battery(m, inv, p: Params):
+    """Non-zero battery test: sum_v x^B_v >= B^Test (lifecycle cost objective kept)."""
+    m.addConstr(inv["xB"].sum() >= p.B_test, "battery_test")
+
+
+def cost_cap(m, p: Params, Z_star):
+    """Z <= (1 + eps) Z*: keeps alternative-objective designs within eps of the minimum lifecycle cost.
+    Z is the base objective expression set in microgrid.build(); call this before replacing it."""
+    m.update()
+    m.addConstr(m.getObjective() <= (1 + p.eps) * Z_star, "cost_cap")
+
+
+def min_imports(m, ops, p: Params, Z_star):
+    """Alternative objective 1: min Z^imp = sum_y n_y sum_t g^imp_{y,t} (undiscounted), with Z <= (1 + eps) Z*."""
+    cost_cap(m, p, Z_star)
+    m.setObjective(sum(len(A_Y[y]) * m._scale * o["imp"].sum() for y, o in ops.items()), GRB.MINIMIZE)
+
+
+def min_peak(m, ops, p: Params, Z_star):
+    """Alternative objective 2: min Z^peak = P^peak, with g^imp_{y,t} <= P^peak and Z <= (1 + eps) Z*."""
+    cost_cap(m, p, Z_star)
+    P_peak = m.addMVar(1, name="P_peak")                       # kW, max grid draw over the horizon
+    for y, o in ops.items():
+        m.addConstr(o["imp"] <= P_peak, f"peak_{y}")
+    m.setObjective(P_peak.sum(), GRB.MINIMIZE)
 
 
 def peak_day(df_full):

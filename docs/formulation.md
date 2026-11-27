@@ -35,6 +35,12 @@ min Z = C^inv + C^OM + C^rep − C^RV + C^grid
 - C^RV = D_2053 ( 1/25 c^PV_2028 x^PV_2028 + 13/25 c^PV_2040 x^PV_2040 + 3/15 c^B_2040 x^B_2040 + 6/15 c^rep_2043 x^B_2028 )
 - C^grid = Σ_y W_y Σ_t ( c^imp_t g^imp_{y,t} − c^exp g^exp_{y,t} )
 
+## Carbon emissions (reported, not optimized; code: `emissions()` in `model/microgrid.py`)
+E^CO2 = Σ_y n_y Σ_t e^grid g^imp_{y,t}, with n_y = |A_y| (1, 6, 6, 6, 6)
+- Calculated after solving from the chosen imports; not in the objective or constraints.
+- Not discounted (a kg of CO₂ has the same impact in any year); exports get no avoided-emissions credit.
+- Reported for every run (base, resilience, alternative objectives).
+
 ## Constraints (numbering used in the code)
 1. PV^min z^PV_v ≤ x^PV_v ≤ PV^max z^PV_v  ∀v
 2. B^min z^B_v ≤ x^B_v ≤ B^max z^B_v  ∀v
@@ -76,6 +82,15 @@ A variant of the base model: all base constraints apply unless modified here; PV
 - Code: the base model contains u with upper bound 0 (so base (11) is unchanged); `add_outage` sets the α bounds,
   the u bound and the M objective coefficients.
 
+## Alternative objectives and non-zero battery test (team answer to Q12, code: `model/extensions.py`)
+Each is a separate run on the base model. Z is the base lifecycle cost expression; Z* is its optimum from the base run.
+- **Alt. objective 1, minimize grid imports:** min Z^imp = Σ_y n_y Σ_t g^imp_{y,t} (undiscounted: imports are physical
+  quantities), subject to all base constraints and the lifecycle cost cap Z ≤ (1 + ε) Z*, ε = 0.10.
+- **Alt. objective 2, minimize peak grid draw:** new variable P^peak ≥ 0 (kW); min Z^peak = P^peak, subject to
+  g^imp_{y,t} ≤ P^peak ∀y, t, all base constraints and Z ≤ (1 + ε) Z*.
+- **Non-zero battery test:** lifecycle cost objective plus Σ_v x^B_v ≥ B^Test, B^Test = B^min = 4,000 kWh
+  (with (2), this forces z^B_v = 1 in at least one investment year).
+
 ## Parameter values
 | Symbol | Value | Source |
 |---|---|---|
@@ -100,6 +115,9 @@ A variant of the base model: all base constraints apply unless modified here; PV
 | c^exp | 0.0641 CAD/kWh (constant) | IESO 2025 Year in Review |
 | G^imp,max / G^exp,max | 30,436 / 6,860 kW | P5 |
 | Δt | 1 h | |
+| e^grid | 0.059 kg CO₂e/kWh (constant) | team formulation (source to be cited in the report) |
+| ε | 0.10 (alternative objectives: Z ≤ 1.1 Z*) | team decision (Q12) |
+| B^Test | 4,000 kWh (= B^min) | team decision (Q12) |
 
 ## Open questions
 Values marked UNCONFIRMED are `None` in `model/params.py`, and the model refuses to run until they're set.
@@ -115,7 +133,7 @@ Values marked UNCONFIRMED are `None` in `model/params.py`, and the model refuses
   Q8, the TOU schedule uses the data calendar (Oct 2025 to Sep 2026) in every representative year, so peak hours stay
   aligned with the demand profile's weekdays and holidays (assumption: the same annual calendar pattern repeats).
 
-**Course requirements not in the formulation yet** (see `docs/requirements.md`)
-- Q10. Carbon emissions: an emission intensity value or hourly series, and is it a cost, a cap, or reported only?
-- Q13. Emissions for each resilience run are required by the resilience section, but they depend on Q10.
-- Q12. Alternative objectives (minimize total grid draw, minimize peak grid draw) and the non-zero BESS test: exact equations?
+**Answered by the updated base model (Final Project 6):** Q10, carbon is reported only, E^CO2 = Σ_y n_y Σ_t e^grid g^imp,
+  e^grid = 0.059 kg CO₂e/kWh. Q13, emissions are reported for every run, including the resilience runs.
+  Still for the report: a citation for 0.059.
+**Answered by the team (Final Project 7):** Q12, alternative objectives and the non-zero battery test (section above).

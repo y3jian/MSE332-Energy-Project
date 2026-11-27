@@ -42,8 +42,8 @@ Solved in Python with Gurobi.
 - `data/`: raw inputs; `data/processed/` cleaned demand (`demand_hourly.csv`) and solar files
 - `demand/demand_analysis.ipynb`: makes `demand_hourly.csv` (Person 4)
 - `model/params.py`: all parameters
-- `model/microgrid.py`: the base MILP (constraints (1)–(15), cost objective), solve and validation
-- `model/extensions.py`: add-ons applied to the base model (carbon, resilience, forced battery,
+- `model/microgrid.py`: the base MILP (constraints (1)–(15), cost objective), solve, validation and reported emissions
+- `model/extensions.py`: add-ons applied to the base model (resilience, forced battery,
   alternative objectives, baseline), one function each
 - `analysis/run_cases.ipynb`: runs every case (baseline, sensitivity, stress, objectives) and builds report tables/figures
 - `model/results/`: solver output (git-ignored)

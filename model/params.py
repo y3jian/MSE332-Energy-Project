@@ -59,8 +59,15 @@ class Params:
     G_exp_max: float = 6_860.0                # kW (P5; 0 = no-export scenario)
     dt: float = 1.0                           # interval length, h
 
+    # --- carbon (reported after solving, not in the objective)
+    e_grid: float = 0.059                     # Ontario grid emissions factor, kg CO2e/kWh (team formulation; citation TBD)
+
     # --- resilience extension (docs/team/resilience.pdf); not used by the base model
     M: float = 10.0                           # unmet-demand penalty, CAD/kWh (team decision; justification TBD in report)
+
+    # --- alternative objectives and non-zero battery test (Q12, team decision); not used by the base model
+    eps: float = 0.10                         # lifecycle cost cap for alternative objectives: Z <= (1 + eps) Z*
+    B_test: float = 4_000.0                   # kWh, required total battery in the non-zero battery test (= B_min)
 
     # --- run
     days: int = 365                           # fewer days only for quick tests
